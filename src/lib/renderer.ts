@@ -56,10 +56,10 @@ export function drawEntity(
     }
   }
 
-  // Shadow for 3D float effect - disabled for matte
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
+  // Shadow for 2D float effect
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
 
   ctx.font = '24px Arial'; // Slightly larger for better visibility
   ctx.textAlign = 'center';
@@ -104,6 +104,5 @@ export function drawEntity(
 
   // Draw emoji slightly larger and centered
   ctx.fillText(emoji, 0, 2);
-
   ctx.restore();
 }

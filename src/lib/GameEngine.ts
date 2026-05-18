@@ -49,9 +49,12 @@ export class GameEngine {
     this.cols = Math.min(25, Math.floor((10 + Math.floor(l / 4)) * sizeMult));
     this.rows = Math.ceil(this.cols * (aspectRatio || 1.0));
     
-    // Dynamic difficulty: as level increases, braidRate drops making the maze have more dead ends and fewer shortcuts.
+    // Dynamic difficulty: as multiplier increases, braidRate drops (fewer shortcuts) 
     const baseBraid = d === 'easy' ? 1.0 : (d === 'hard' ? 0.4 : 0.8);
-    const currentBraidRate = Math.max(0.05, baseBraid - (l * 0.02 * difficultyMultiplier));
+    const multiplierEffect = this.multiplier / 2; // Normalize slightly
+    
+    const currentBraidRate = Math.max(0.02, baseBraid - (multiplierEffect * 0.05));
+    
     this.maze = generateMaze(this.cols, this.rows, currentBraidRate);
 
     // Gradual speed increase across levels, affected by difficulty

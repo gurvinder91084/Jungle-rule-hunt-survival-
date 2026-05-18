@@ -9,7 +9,7 @@ export function generateMaze(width: number, height: number, braidRate: number = 
     Array.from({length: width}, (_, x) => ({
       x, y,
       n: true, s: true, e: true, w: true,
-      visited: false
+      visited: false,
     }))
   );
 

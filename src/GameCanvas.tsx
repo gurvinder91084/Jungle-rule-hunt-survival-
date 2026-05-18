@@ -152,17 +152,23 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Ensure canvas respects size constraints
+      // Ensure canvas respects size constraints and High DPI (4K quality)
       const rect = canvas.parentElement?.getBoundingClientRect() || { width: 400, height: 400 };
-      if (canvas.width !== rect.width) canvas.width = rect.width;
-      if (canvas.height !== rect.height) canvas.height = rect.height;
+      const dpr = window.devicePixelRatio || 1;
+      
+      if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+         canvas.width = rect.width * dpr;
+         canvas.height = rect.height * dpr;
+         canvas.style.width = `${rect.width}px`;
+         canvas.style.height = `${rect.height}px`;
+      }
 
       // Transform logic to fit the grid centrally
       const VIRTUAL_WIDTH = engine.cols * engine.cellSize;
       const VIRTUAL_HEIGHT = engine.rows * engine.cellSize;
       const scale = Math.min(canvas.width / VIRTUAL_WIDTH, canvas.height / VIRTUAL_HEIGHT);
       const offsetX = (canvas.width - VIRTUAL_WIDTH * scale) / 2;
-      const offsetY = -2; // Adjusted offset for precise top-screen alignment
+      const offsetY = 0; 
 
       // Clear Canvas (Container has background)
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -171,33 +177,33 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       if (theme !== 'oled') {
         ctx.fillStyle = '#166534';
         ctx.globalAlpha = 0.05;
-        for (let i = 0; i < canvas.width; i+= 60) {
-          for (let j = 0; j < canvas.height; j+= 60) {
-            ctx.beginPath(); ctx.arc(i + 30, j + 30, 2, 0, Math.PI*2); ctx.fill();
+        for (let i = 0; i < canvas.width; i+= 60 * dpr) {
+          for (let j = 0; j < canvas.height; j+= 60 * dpr) {
+            ctx.beginPath(); ctx.arc(i + 30 * dpr, j + 30 * dpr, 2 * dpr, 0, Math.PI*2); ctx.fill();
           }
         }
         ctx.strokeStyle = '#022c22';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 * dpr;
         ctx.globalAlpha = 0.3;
-        for (let i = 0; i < canvas.width; i+= 60) {
+        for (let i = 0; i < canvas.width; i+= 60 * dpr) {
            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
         }
-        for (let j = 0; j < canvas.height; j+= 60) {
+        for (let j = 0; j < canvas.height; j+= 60 * dpr) {
            ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
         }
         ctx.globalAlpha = 1.0;
       } else {
-        // Explicitly fill background black for OLED theme to prevent Android canvas compositing/transparency bugs
+        // Explicitly fill background black for OLED theme
         ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.strokeStyle = '#222222';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1 * dpr;
         ctx.globalAlpha = 1.0;
-        for (let i = 0; i < canvas.width; i+= 60) {
+        for (let i = 0; i < canvas.width; i+= 60 * dpr) {
            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
         }
-        for (let j = 0; j < canvas.height; j+= 60) {
+        for (let j = 0; j < canvas.height; j+= 60 * dpr) {
            ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(canvas.width, j); ctx.stroke();
         }
       }
@@ -224,42 +230,33 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       }
       setDangerMult(dMult);
 
-      const drawMazeSegments = () => {
+      const draw2DMaze = () => {
+         const cs = engine.cellSize;
+         ctx.lineCap = 'round';
+         ctx.lineJoin = 'round';
+
+         // Original Matte Orange Walls
+         ctx.strokeStyle = '#f97316';
+         ctx.lineWidth = 4;
          ctx.beginPath();
-         for(let y=0; y<engine.rows; y++){
-            for(let x=0; x<engine.cols; x++){
+         for (let y = 0; y < engine.rows; y++) {
+            for (let x = 0; x < engine.cols; x++) {
                const c = engine.maze[y][x];
-               const px = x * engine.cellSize;
-               const py = y * engine.cellSize;
-               const cs = engine.cellSize;
-               if (c.n) { ctx.moveTo(px, py); ctx.lineTo(px+cs, py); }
-               if (c.s) { ctx.moveTo(px, py+cs); ctx.lineTo(px+cs, py+cs); }
-               if (c.e) { ctx.moveTo(px+cs, py); ctx.lineTo(px+cs, py+cs); }
-               if (c.w) { ctx.moveTo(px, py); ctx.lineTo(px, py+cs); }
+               const px = x * cs;
+               const py = y * cs;
+               if (c.n) { ctx.moveTo(px, py); ctx.lineTo(px + cs, py); }
+               if (c.s) { ctx.moveTo(px, py + cs); ctx.lineTo(px + cs, py + cs); }
+               if (c.e) { ctx.moveTo(px + cs, py); ctx.lineTo(px + cs, py + cs); }
+               if (c.w) { ctx.moveTo(px, py); ctx.lineTo(px, py + cs); }
             }
          }
+         ctx.stroke();
       };
 
-      // Draw grid maze - 3D Steampunk effect
+      // Draw grid maze - Sharp 2D
       ctx.lineCap = 'square';
       
-      // Base shadow (disabled for matte)
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      
-      // Reset shadow
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      
-      // Flat matte maze walls
-      ctx.strokeStyle = '#f97316'; // orange
-      ctx.lineWidth = 4;
-      drawMazeSegments();
-      ctx.stroke();
+      draw2DMaze();
 
       // Draw Entities
       try {
