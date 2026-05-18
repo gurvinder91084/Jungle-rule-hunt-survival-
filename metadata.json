@@ -1,0 +1,8 @@
+{
+  "name": "Jungle Rule: Hunt & Survive",
+  "description": "A 3D mobile game splash and survival game interface",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
