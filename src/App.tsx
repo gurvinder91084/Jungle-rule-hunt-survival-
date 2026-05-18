@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './GameCanvas';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Skull, Play, RotateCcw, Home, Star, Share2, Gamepad2, Settings, X, Volume2, Vibrate, Music, MessageSquare } from 'lucide-react';
+import { Trophy, Skull, Play, RotateCcw, Home, Star, Share2, Gamepad2, Settings, X, Volume2, Vibrate, MessageSquare, Music } from 'lucide-react';
 import { audio } from './lib/audio';
 
 export default function App() {
@@ -19,8 +19,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [theme, setTheme] = useState<'default' | 'oled' | 'deep'>('default');
   const [controllerType, setControllerType] = useState<'dpad' | 'joystick' | 'swipe'>('dpad');
-
-  const [showPopup, setShowPopup] = useState<'none' | 'win' | 'lose'>('none');
+   const [showPopup, setShowPopup] = useState<'none' | 'win' | 'lose'>('none');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -118,7 +117,7 @@ export default function App() {
 
   return (
     <div 
-      className={`w-full h-screen overflow-hidden ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'} font-mono selection:bg-[#65a30d]/30 relative`}
+      className={`w-full h-[100dvh] overflow-hidden ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'} font-mono selection:bg-[#65a30d]/30 relative`}
       style={{
         // Only grayscaling the background using an overlay pseudo-element strategy or specific div
       }}
@@ -406,7 +405,7 @@ export default function App() {
                  </div>
 
                  {/* Customize Layout - Highlighted */}
-                 {controllerType === 'dpad' && (
+                 {(controllerType === 'dpad' || controllerType === 'joystick') && (
                    <div className={`${theme === 'oled' ? 'bg-[#222] border-[#555]' : 'bg-[#064e3b] border-[#65a30d]'} border-2 p-4 rounded-xl flex flex-col gap-3`}>
                      <div className="flex items-center justify-between gap-4">
                        <span className={`flex items-center gap-2 uppercase text-sm tracking-widest font-black ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
@@ -424,10 +423,29 @@ export default function App() {
                        </button>
                      </div>
                      <p className={`text-[10px] sm:text-xs opacity-90 ${theme === 'oled' ? 'text-gray-400' : 'text-[#a3e635]'}`}>
-                       Drag and drop to reposition the D-PAD and buttons according to your playstyle.
+                       Drag and drop to reposition the {controllerType === 'joystick' ? 'JOYSTICK' : 'D-PAD'} and buttons according to your playstyle.
                      </p>
                    </div>
                  )}
+
+                 {/* Forest Ambience Control */}
+                 <div className="flex items-center justify-between gap-4">
+                   <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                     <Music size={16} /> Forest Ambience
+                   </span>
+                   <button 
+                     onClick={() => {
+                        const m = !music;
+                        setMusic(m);
+                        audio.setMusic(m);
+                     }}
+                     className={`w-14 h-8 rounded-full p-1 transition-colors relative ${music ? (theme === 'oled' ? 'bg-white' : 'bg-[#65a30d]') : (theme === 'oled' ? 'bg-[#333]' : 'bg-[#022c22]')}`}
+                   >
+                     <div className={`w-6 h-6 rounded-full transition-transform ${theme === 'oled' ? (music ? 'bg-[#222]' : 'bg-[#111]') : 'bg-[#064e3b]'} ${music ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                   </button>
+                 </div>
+
+                 <div className={`w-full h-px my-[-10px] ${theme === 'oled' ? 'bg-[#333]' : 'bg-[#15803d]/30'}`}></div>
 
                  {/* Haptics Control */}
                  <div className="flex items-center justify-between gap-4">
@@ -444,25 +462,6 @@ export default function App() {
                      className={`w-14 h-8 rounded-full p-1 transition-colors relative ${haptics ? (theme === 'oled' ? 'bg-white' : 'bg-[#65a30d]') : (theme === 'oled' ? 'bg-[#333]' : 'bg-[#022c22]')}`}
                    >
                      <div className={`w-6 h-6 rounded-full transition-transform ${theme === 'oled' ? (haptics ? 'bg-[#222]' : 'bg-[#111]') : 'bg-[#064e3b]'} ${haptics ? 'translate-x-6' : 'translate-x-0'}`}></div>
-                   </button>
-                 </div>
-                 
-                 <div className={`w-full h-px my-[-10px] ${theme === 'oled' ? 'bg-[#333]' : 'bg-[#15803d]/30'}`}></div>
-
-                 {/* Music Control */}
-                 <div className="flex items-center justify-between gap-4">
-                   <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                     <Music size={16} /> Music
-                   </span>
-                   <button 
-                     onClick={() => {
-                        const m = !music;
-                        setMusic(m);
-                        audio.setMusic(m);
-                     }}
-                     className={`w-14 h-8 rounded-full p-1 transition-colors relative ${music ? (theme === 'oled' ? 'bg-white' : 'bg-[#65a30d]') : (theme === 'oled' ? 'bg-[#333]' : 'bg-[#022c22]')}`}
-                   >
-                     <div className={`w-6 h-6 rounded-full transition-transform ${theme === 'oled' ? (music ? 'bg-[#222]' : 'bg-[#111]') : 'bg-[#064e3b]'} ${music ? 'translate-x-6' : 'translate-x-0'}`}></div>
                    </button>
                  </div>
                  

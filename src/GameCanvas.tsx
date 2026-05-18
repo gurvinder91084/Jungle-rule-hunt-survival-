@@ -44,7 +44,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
        trap: { x: 0, y: 0 },
        settings: { x: 0, y: 0 },
        score: { x: 0, y: 0 },
-       home: { x: 0, y: 0 }
+       home: { x: 0, y: 0 },
+       joystick: { x: 0, y: 0 }
     };
     try {
       const saved = localStorage.getItem('control_pos_v7');
@@ -84,19 +85,34 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
 
-    audio.onPlay = (type) => {
-        if (type === 'step') visualPulseRef.current = { r: 255, g: 255, b: 255, a: 0.03, start: performance.now() };
-        else if (type === 'nom' || type === 'win') visualPulseRef.current = { r: 100, g: 255, b: 100, a: 0.2, start: performance.now() };
-        else if (type === 'meow' || type === 'caught' || type === 'lose') visualPulseRef.current = { r: 255, g: 50, b: 50, a: 0.3, start: performance.now() };
-        else if (type === 'trap') visualPulseRef.current = { r: 255, g: 150, b: 0, a: 0.2, start: performance.now() };
+    // Start BGM when entering the game
+    audio.startBGM();
+
+      audio.onPlay = (type) => {
+        if (type === 'nom' || type === 'win') {
+          if ('vibrate' in navigator) navigator.vibrate(100);
+        }
+        else if (type === 'caught' || type === 'lose') {
+          if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+        }
+        else if (type === 'trap') {
+          if ('vibrate' in navigator) navigator.vibrate(50);
+        }
     };
 
     engine.score = score;
     engine.multiplier = multiplier;
     
-    // Calculate aspect ratio for mobile full-screen maze
+    // Calculate aspect ratio for maze map
     const rect = canvasRef.current?.parentElement?.getBoundingClientRect() || { width: 400, height: 800 };
-    const aspectRatio = rect.height / rect.width;
+    let aspectRatio = 1.0;
+    
+    if (window.innerWidth < 768) {
+       // Mobile sizing: use the entire available viewport height
+       aspectRatio = rect.height / rect.width;
+    } else {
+       aspectRatio = rect.height / rect.width;
+    }
     
     engine.initList(level, mode, difficulty, aspectRatio, (win) => {
        setTimeout(()=>onGameOverRef.current(win, engine.score), 100);
@@ -146,7 +162,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       const VIRTUAL_HEIGHT = engine.rows * engine.cellSize;
       const scale = Math.min(canvas.width / VIRTUAL_WIDTH, canvas.height / VIRTUAL_HEIGHT);
       const offsetX = (canvas.width - VIRTUAL_WIDTH * scale) / 2;
-      const offsetY = (canvas.height - VIRTUAL_HEIGHT * scale) / 2;
+      const offsetY = -2; // Adjusted offset for precise top-screen alignment
 
       // Clear Canvas (Container has background)
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -267,20 +283,6 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       }
 
       ctx.restore();
-
-      // Audio VisualPulse
-      const pulse = visualPulseRef.current;
-      if (pulse.a > 0) {
-         const elapsed = window.performance.now() - pulse.start;
-         const duration = 300; // ms
-         if (elapsed < duration) {
-            const currentAlpha = pulse.a * (1 - (elapsed / duration));
-            ctx.fillStyle = `rgba(${pulse.r}, ${pulse.g}, ${pulse.b}, ${currentAlpha})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-         } else {
-            pulse.a = 0;
-         }
-      }
     };
     rafId = requestAnimationFrame(loop);
 
@@ -366,6 +368,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
        window.removeEventListener('touchend', handleTouchEnd);
        engine.active = false;
        audio.onPlay = undefined;
+       audio.stopBGM();
     };
   }, [level, mode, controllerType]);
 
@@ -405,7 +408,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       );
 
   return (
-    <div className={`w-full h-screen fixed inset-0 text-[#65a30d] font-mono flex flex-col overflow-hidden md:p-6 z-0 bg-transparent`}>
+    <div className={`w-full h-[100dvh] fixed inset-0 text-[#65a30d] font-mono flex flex-col overflow-hidden md:p-6 z-0 bg-transparent`}>
       
       {/* Main Gameplay Layout */}
       <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-0 md:gap-8 min-h-0 relative items-center md:items-stretch">
@@ -509,7 +512,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
          drag={isEditingControls}
          dragMomentum={false}
          onDragEnd={(e, info) => saveControlPositions('score', e, info)}
-         className={`fixed bottom-6 left-6 z-[70] flex flex-col gap-2 text-[#65a30d] uppercase text-[10px] tracking-widest opacity-90 ${isEditingControls ? 'pointer-events-auto border-2 border-dashed border-[#65a30d] p-2 bg-black/40 rounded-xl rounded-tr-none touch-none' : 'pointer-events-none'}`}
+         className={`fixed bottom-20 sm:bottom-6 left-6 z-[70] flex flex-col gap-2 text-[#65a30d] uppercase text-[10px] tracking-widest opacity-90 ${isEditingControls ? 'pointer-events-auto border-2 border-dashed border-[#65a30d] p-2 bg-black/40 rounded-xl rounded-tr-none touch-none' : 'pointer-events-none'}`}
       >
         <div className="flex flex-col gap-0.5 pointer-events-none">
           <span className="opacity-50">Score</span>
@@ -604,7 +607,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
                 onPointerUp={() => !isEditingControls && handleDir(null)}
                 onPointerLeave={() => !isEditingControls && handleDir(null)}
                 className={`absolute w-16 h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-40 ${ctrlBase}`}
-                style={{ left: '50%', top: '80%', marginLeft: '-32px', marginTop: '-96px' }}
+                style={{ left: '50%', top: '75%', marginLeft: '-32px', marginTop: '-96px' }}
              >
                <ChevronUp size={36} />
              </motion.button>
@@ -618,7 +621,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
            onPointerUp={() => !isEditingControls && handleDir(null)}
            onPointerLeave={() => !isEditingControls && handleDir(null)}
            className={`absolute w-16 h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-40 ${ctrlBase}`}
-           style={{ left: '50%', top: '80%', marginLeft: '-32px', marginTop: '32px' }}
+           style={{ left: '50%', top: '75%', marginLeft: '-32px', marginTop: '32px' }}
         >
           <ChevronDown size={36} />
         </motion.button>
@@ -632,7 +635,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
            onPointerUp={() => !isEditingControls && handleDir(null)}
            onPointerLeave={() => !isEditingControls && handleDir(null)}
            className={`absolute w-16 h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-40 ${ctrlBase}`}
-           style={{ left: '50%', top: '80%', marginLeft: '-96px', marginTop: '-32px' }}
+           style={{ left: '50%', top: '75%', marginLeft: '-96px', marginTop: '-32px' }}
         >
           <ChevronLeft size={36} />
         </motion.button>
@@ -646,7 +649,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
                 onPointerUp={() => !isEditingControls && handleDir(null)}
                 onPointerLeave={() => !isEditingControls && handleDir(null)}
                 className={`absolute w-16 h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-40 ${ctrlBase}`}
-                style={{ left: '50%', top: '80%', marginLeft: '32px', marginTop: '-32px' }}
+                style={{ left: '50%', top: '75%', marginLeft: '32px', marginTop: '-32px' }}
              >
                <ChevronRight size={36} />
              </motion.button>
@@ -654,10 +657,18 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
         )}
 
         {controllerType === 'joystick' && (
-           <div className="absolute w-full z-30 pointer-events-auto" style={{ left: '0', top: '80%', marginTop: '-32px', touchAction: 'none' }}>
+           <motion.div 
+              animate={{ x: controlPositions.joystick.x, y: controlPositions.joystick.y }}
+              drag={isEditingControls}
+              dragMomentum={false}
+              onDragEnd={(e, info) => saveControlPositions('joystick', e, info)}
+              className={`absolute w-full z-30 pointer-events-auto ${isEditingControls ? 'cursor-move' : ''}`} 
+              style={{ left: '0', top: '75%', marginTop: '-32px', touchAction: 'none' }}
+           >
               <div 
-                 className={`w-32 h-32 rounded-full border-4 mx-auto relative flex items-center justify-center ${theme === 'oled' ? 'border-white/20 bg-white/5' : 'border-[#65a30d]/20 bg-[#84cc16]/5'}`}
+                 className={`w-32 h-32 rounded-full border-4 mx-auto relative flex items-center justify-center ${theme === 'oled' ? 'border-white/20 bg-white/5' : 'border-[#65a30d]/20 bg-[#84cc16]/5'} ${isEditingControls ? 'border-dashed border-white/40 bg-white/10' : ''}`}
                  onPointerDown={(e) => {
+                     if (isEditingControls) return;
                      const rect = e.currentTarget.getBoundingClientRect();
                      const centerX = rect.left + rect.width / 2;
                      const centerY = rect.top + rect.height / 2;
@@ -701,8 +712,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
               >
                  <div ref={joystickThumbRef} className={`w-12 h-12 rounded-full pointer-events-none transition-transform duration-75 ${theme === 'oled' ? 'bg-white/20' : 'bg-[#65a30d]/30'}`}></div>
               </div>
-              <div className={`text-xs font-bold tracking-widest uppercase mt-4 text-center opacity-50 ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>Drag Joystick</div>
-           </div>
+              <div className={`text-xs font-bold tracking-widest uppercase mt-4 text-center opacity-50 ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>{isEditingControls ? 'Drag to Move Joystick' : 'Drag Joystick'}</div>
+           </motion.div>
         )}
 
         {controllerType === 'swipe' && (
@@ -718,7 +729,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
               if (!isEditingControls) handleTrap();
            }}
            className={`absolute w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-[80] ${trapCtrlBase} !cursor-grab active:!cursor-grabbing`}
-           style={{ left: '50%', top: '80%', marginLeft: '112px', marginTop: '-32px' }}
+           style={{ left: '50%', top: '75%', marginLeft: '112px', marginTop: '-32px' }}
         >
           <span className="text-xl sm:text-2xl ">
              {mode === 'survival_rat' || mode === 'hunter_dog' ? '🥛' : 

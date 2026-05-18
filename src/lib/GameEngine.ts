@@ -47,7 +47,7 @@ export class GameEngine {
     // Maze complexity affected by difficulty
     let sizeMult = d === 'easy' ? 0.7 : (d === 'hard' ? 1.3 : 1.0);
     this.cols = Math.min(25, Math.floor((10 + Math.floor(l / 4)) * sizeMult));
-    this.rows = Math.floor(this.cols * (aspectRatio || 1.0));
+    this.rows = Math.ceil(this.cols * (aspectRatio || 1.0));
     
     // Dynamic difficulty: as level increases, braidRate drops making the maze have more dead ends and fewer shortcuts.
     const baseBraid = d === 'easy' ? 1.0 : (d === 'hard' ? 0.4 : 0.8);
@@ -375,7 +375,6 @@ export class GameEngine {
               e.dir = getDirAngle(nx - e.x, ny - e.y);
               e.state = "moving";
               if (e.isPlayer) {
-                audio.play("step");
                 this.steps++;
                 this.score += 10 * this.multiplier;
               }
@@ -384,7 +383,7 @@ export class GameEngine {
         } else {
           // AI
           const currentAi = e.ai;
-
+          
           if (currentAi && currentAi.startsWith("chase_")) {
             const [targetSpecies, strat] = currentAi.replace("chase_", "").split(":");
             const target = getNearest(this.entities, targetSpecies, e.x, e.y);
@@ -465,7 +464,6 @@ export class GameEngine {
                 e.ty = move.y;
                 e.dir = getDirAngle(e.tx - e.x, e.ty - e.y);
                 e.state = "moving";
-                if (e.isPlayer) audio.play("step");
               }
             }
           } else if (currentAi === "random") {
