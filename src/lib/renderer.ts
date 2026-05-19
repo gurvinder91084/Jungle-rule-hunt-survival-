@@ -27,6 +27,10 @@ export function drawEntity(
   
   // To keep the face always straight (ghumey na), we only apply the bobbing, NOT rotation based on `dir`
   ctx.translate(0, bobY);
+
+  if (species.includes('trap')) {
+    ctx.translate(0, 8); // Shift trap slightly down ("niche")
+  }
   
   if (state === 'caught') {
     if (isTarget) {
@@ -97,6 +101,18 @@ export function drawEntity(
 
   if (state === 'eating') {
     ctx.scale(1.2, 1.2);
+    // Add floating hearts or indicators for being trapped/eating
+    ctx.save();
+    const count = 3;
+    for (let i = 0; i < count; i++) {
+       const offset = (time * 0.005 + (i * Math.PI * 2 / count)) % (Math.PI * 2);
+       const hx = Math.cos(offset) * 20;
+       const hy = -25 - Math.sin(offset) * 10;
+       ctx.globalAlpha = 0.8;
+       ctx.font = '12px Arial';
+       ctx.fillText('❤️', hx, hy);
+    }
+    ctx.restore();
   }
 
   // Ensure fillStyle is opaque (and white for monochrome fallbacks) before drawing text

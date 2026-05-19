@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameCanvas } from './GameCanvas';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, Skull, Play, RotateCcw, Home, Star, Share2, Gamepad2, Settings, X, Volume2, Vibrate, MessageSquare, Music } from 'lucide-react';
+import { Trophy, Skull, Play, RotateCcw, Home, Star, Share2, Gamepad2, Settings, X, Volume2, Vibrate, Music } from 'lucide-react';
 import { audio } from './lib/audio';
 
 export default function App() {
@@ -21,10 +21,6 @@ export default function App() {
   const [controllerType, setControllerType] = useState<'dpad' | 'joystick' | 'swipe'>('dpad');
    const [showPopup, setShowPopup] = useState<'none' | 'win' | 'lose'>('none');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [rating, setRating] = useState(5);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [volume, setVolume] = useState(audio.volume * 100);
   const [haptics, setHaptics] = useState(audio.haptics);
   const [music, setMusic] = useState(audio.music);
@@ -224,42 +220,6 @@ export default function App() {
                    className={`flex flex-col gap-2 sm:gap-4 w-full max-w-4xl pb-4 sm:pb-6 shrink-0 ${theme === 'oled' ? 'bg-[#111111]/90 border-[#333]' : 'bg-[#064e3b]/80 border-[#022c22]'} p-2 sm:p-5 rounded-2xl sm:rounded-[2rem] border-[3px] sm:border-4 relative z-10 px-1 sm:px-4 items-center shadow-2xl drop-shadow-2xl`}
                 >
                    
-                   {/* Top Row: Share, Settings, Feedback */}
-                   <div style={{ transform: 'translateZ(20px)' }} className="flex gap-2 w-full max-w-sm shrink-0 mb-4 px-2">
-                       <button 
-                           onClick={() => {
-                               if (navigator.share) {
-                                   navigator.share({
-                                       title: 'Jungle Survival Game',
-                                       text: 'Check out Jungle Survival Game!',
-                                       url: window.location.href,
-                                   }).catch(console.error);
-                               } else {
-                                   alert('Share not supported on this browser');
-                               }
-                           }}
-                           className={`flex-1 ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#166534] border-[#064e3b] text-white hover:bg-[#15803d]'} border-2 border-b-[4px] rounded-xl py-1.5 flex items-center justify-center gap-1 font-black text-[9px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-lg relative z-50`}>
-                           <Share2 size={12} />
-                           SHARE
-                       </button>
-                       <button 
-                           onClick={() => setIsSettingsOpen(true)}
-                           className={`flex-1 ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#166534] border-[#064e3b] text-white hover:bg-[#15803d]'} border-2 border-b-[4px] rounded-xl py-1.5 flex items-center justify-center gap-1 font-black text-[9px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-lg relative z-50`}>
-                           <Settings size={12} />
-                           OPTS
-                       </button>
-                       <button 
-                           onClick={() => {
-                             setIsFeedbackOpen(true);
-                             setFeedbackSubmitted(false);
-                             setFeedbackMessage('');
-                             setRating(5);
-                           }}
-                           className={`flex-1 ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#166534] border-[#064e3b] text-white hover:bg-[#15803d]'} border-2 border-b-[4px] rounded-xl py-1.5 flex items-center justify-center gap-1 font-black text-[9px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-lg relative z-50`}>
-                           <MessageSquare size={12} />
-                           FEED
-                       </button>
-                   </div>
 
                    {/* Difficulty Selector */}
                    <div style={{ transform: 'translateZ(20px)' }} className={`flex ${theme === 'oled' ? 'bg-[#000]/80 border-[#444]' : 'bg-[#022c22]/50 border-[#022c22]'} border-2 sm:border-4 rounded-full p-1 w-full max-w-sm shrink-0 mt-2 mb-2`}>
@@ -337,22 +297,32 @@ export default function App() {
                  </div>
                  </div>
                  </div>
-
-                 <div className="mt-4 mb-10 pb-4">
-                    <button
-                        onClick={() => { window.open('https://ai.google.dev/', '_blank'); }}
-                        className={`max-w-[200px] ${theme === 'oled' ? 'bg-[#333] border-[#555] text-white hover:bg-[#444]' : 'bg-[#15803d] border-[#022c22] text-white hover:bg-[#166534]'} border-2 border-b-[4px] rounded-xl py-2 px-6 flex items-center justify-center gap-2 font-black text-[11px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] cursor-pointer shadow-lg relative z-50`}
-                    >
-                        <Gamepad2 size={18} />
-                        MORE GAMES
-                    </button>
-                 </div>
              </motion.div>
           )}
 
           {gameState === 'playing' && (
              <motion.div key="playing" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="w-full h-full relative z-10">
-                <GameCanvas key={gameKey} level={level} mode={mode} difficulty={difficulty} score={score} multiplier={multiplier} theme={theme} controllerType={controllerType} isPaused={showPopup !== 'none'} onGameOver={handleGameOver} onGoHome={goHome} startInEditMode={startInEditMode} onEditDone={() => { setStartInEditMode(false); setGameState('menu'); }} />
+                <GameCanvas 
+                  key={gameKey} 
+                  level={level} 
+                  mode={mode} 
+                  difficulty={difficulty} 
+                  score={score} 
+                  multiplier={multiplier} 
+                  theme={theme} 
+                  controllerType={controllerType} 
+                  isPaused={showPopup !== 'none'} 
+                  haptics={haptics}
+                  music={music}
+                  setTheme={setTheme}
+                  setControllerType={setControllerType}
+                  setHaptics={setHaptics}
+                  setMusic={setMusic}
+                  onGameOver={handleGameOver} 
+                  onGoHome={goHome} 
+                  startInEditMode={startInEditMode} 
+                  onEditDone={() => { setStartInEditMode(false); setGameState('menu'); }} 
+                />
                 
                 <AnimatePresence>
                    {showPopup === 'win' && (
@@ -385,7 +355,7 @@ export default function App() {
                  onClick={() => setIsSettingsOpen(false)}
                  className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[120] text-white hover:text-[#65a30d] transition-colors bg-black/50 p-2 sm:p-3 rounded-full border border-white/20 "
                >
-                 <X size={28} />
+                 <X size={20} />
                </button>
                
                <h2 className={`text-2xl font-bold tracking-tighter mb-8 uppercase flex items-center justify-center gap-3 ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
@@ -483,15 +453,15 @@ export default function App() {
                          onClick={() => setTheme('oled')}
                          className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors border ${theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#111] border-[#333] hover:bg-[#222]'}`}>
                          OLED
-                       </button>
-                     </div>
-                   </div>
-                 </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-                 <div className="w-full h-px bg-[#15803d]/30 my-[-10px]"></div>
+                  <div className="w-full h-px bg-[#15803d]/30 my-[-10px]"></div>
 
-                 {/* Controller Settings */}
-                 <div className="flex flex-col gap-3">
+                  {/* Controller Settings */}
+                  <div className="flex flex-col gap-3">
                    <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
                      Controller
                    </span>
@@ -513,152 +483,15 @@ export default function App() {
                      </button>
                    </div>
                  </div>
-
-                 {/* Removed */}
-                 
-                 <div className={`w-full h-px my-[-10px] ${theme === 'oled' ? 'bg-[#333]' : 'bg-[#15803d]/30'}`}></div>
-
-                 <div className="flex items-center justify-between gap-4">
-                   <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                     Rate Us
-                   </span>
-                   <button 
-                     onClick={() => {
-                         alert("Please leave a rating for us!");
-                     }}
-                     className={`${theme === 'oled' ? 'bg-[#222] hover:bg-[#333] text-[#ccc] border-[#444]' : 'bg-[#166534]/50 hover:bg-[#166534] text-[#65a30d] border-[#15803d]'} border px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2`}
-                   >
-                     <Star size={14} className={theme === 'oled' ? 'fill-[#ccc]' : 'fill-[#65a30d]'} /> RATE
-                   </button>
-                 </div>
-
-                 <div className="flex items-center justify-between gap-4">
-                   <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                     Share Game
-                   </span>
-                   <button 
-                     onClick={() => {
-                         if (navigator.share) {
-                             navigator.share({ title: 'Maza Map', url: window.location.href }).catch(err => console.log('Share canceled or failed', err));
-                         } else {
-                             alert("Share Maza Map and give us feedback!");
-                         }
-                     }}
-                     className={`${theme === 'oled' ? 'bg-[#222] hover:bg-[#333] text-[#ccc] border-[#444]' : 'bg-[#166534]/50 hover:bg-[#166534] text-[#65a30d] border-[#15803d]'} border px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2`}
-                   >
-                     <Share2 size={14} /> SHARE
-                   </button>
-                 </div>
-
-                 <div className="flex items-center justify-between gap-4">
-                   <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                     More Games
-                   </span>
-                   <button 
-                     onClick={() => {
-                         alert("Upcoming Games will be available soon!");
-                     }}
-                     className={`${theme === 'oled' ? 'bg-[#222] hover:bg-[#333] text-[#ccc] border-[#444]' : 'bg-[#166534]/50 hover:bg-[#166534] text-[#65a30d] border-[#15803d]'} border px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2`}
-                   >
-                     <Gamepad2 size={14} className={theme === 'oled' ? 'fill-[#ccc]' : 'fill-[#65a30d]'} /> PLAY
-                   </button>
-                 </div>
                </div>
 
                <div className={`mt-10 text-[10px] uppercase opacity-40 tracking-widest ${theme === 'oled' ? 'text-white' : ''}`}>
                  Jungle Rule V1.0
-               </div>
-             </div>
-           </motion.div>
-         )}
-       </AnimatePresence>
-
-       {/* Feedback Modal */}
-       <AnimatePresence>
-         {isFeedbackOpen && (
-           <motion.div 
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             exit={{ opacity: 0 }}
-             className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center flex-col p-6 pointer-events-auto"
-           >
-             <div className={`${theme === 'oled' ? 'bg-[#111] border-[#333]' : 'bg-[#064e3b] border-[#047857]/40'} border rounded-2xl p-8 max-w-sm w-full relative text-center max-h-[90vh] overflow-y-auto`}>
-               <button 
-                 onClick={() => setIsFeedbackOpen(false)}
-                 className="fixed top-4 right-4 sm:top-6 sm:right-6 z-[120] text-white hover:text-[#65a30d] transition-colors bg-black/50 p-2 sm:p-3 rounded-full border border-white/20 "
-               >
-                 <X size={28} />
-               </button>
-               
-               <h2 className={`text-2xl font-bold tracking-tighter mb-4 uppercase flex items-center justify-center gap-3 ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
-                 <MessageSquare size={28} />
-                 Feedback
-               </h2>
-
-               {feedbackSubmitted ? (
-                 <div className="flex flex-col items-center justify-center py-10">
-                   <div className="w-16 h-16 rounded-full bg-[#15803d] flex items-center justify-center mb-4 text-white">
-                     <Star size={32} className="fill-white" />
-                   </div>
-                   <h3 className={`text-xl font-bold mb-2 ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>Thank You!</h3>
-                   <p className={`text-sm opacity-80 ${theme === 'oled' ? 'text-gray-300' : 'text-[#65a30d]'}`}>Your feedback helps us improve the game.</p>
-                   <button
-                     onClick={() => setIsFeedbackOpen(false)}
-                     className={`mt-8 px-6 py-3 rounded-xl font-bold uppercase tracking-widest ${theme === 'oled' ? 'bg-white text-black' : 'bg-[#65a30d] text-[#022c22]'}`}
-                   >
-                     Close
-                   </button>
-                 </div>
-               ) : (
-                 <div className="flex flex-col gap-6 text-left">
-                   <div className="flex flex-col gap-3">
-                     <label className={`uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                       Rate your experience
-                     </label>
-                     <div className="flex justify-center gap-2">
-                       {[1, 2, 3, 4, 5].map((star) => (
-                         <button
-                           key={star}
-                           onClick={() => setRating(star)}
-                           className="transition-transform hover:scale-110 active:scale-95"
-                         >
-                           <Star size={32} className={`${rating >= star ? (theme === 'oled' ? 'text-white fill-white' : 'text-[#65a30d] fill-[#65a30d]') : (theme === 'oled' ? 'text-[#444]' : 'text-[#022c22]')}`} />
-                         </button>
-                       ))}
-                     </div>
-                   </div>
-
-                   <div className="flex flex-col gap-3">
-                     <label className={`uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
-                       Tell us more
-                     </label>
-                     <textarea
-                       value={feedbackMessage}
-                       onChange={(e) => setFeedbackMessage(e.target.value)}
-                       placeholder="What do you think of the game?"
-                       className={`w-full h-32 p-3 rounded-xl resize-none outline-none font-sans text-sm ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white focus:border-white' : 'bg-[#022c22] border-[#15803d] text-[#a3e635] focus:border-[#65a30d] placeholder:text-[#15803d]'} border transition-colors`}
-                     ></textarea>
-                   </div>
-
-                   <button
-                     onClick={() => {
-                        // simulate sending
-                        setTimeout(() => {
-                          setFeedbackSubmitted(true);
-                        }, 500);
-                     }}
-                     disabled={feedbackMessage.trim() === ''}
-                     className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${feedbackMessage.trim() === '' ? 'opacity-50 cursor-not-allowed ' + (theme === 'oled' ? 'bg-[#333] text-[#666]' : 'bg-[#022c22] text-[#15803d]') : (theme === 'oled' ? 'bg-white text-black hover:bg-gray-200' : 'bg-[#65a30d] text-[#022c22] hover:bg-[#a3e635] active:scale-95')}`}
-                   >
-                     Submit Feedback
-                   </button>
-                 </div>
-               )}
-             </div>
-           </motion.div>
-         )}
-       </AnimatePresence>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
     </div>
   );
 }
-

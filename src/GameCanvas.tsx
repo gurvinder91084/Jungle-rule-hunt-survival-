@@ -3,7 +3,18 @@ import { GameEngine } from './lib/GameEngine';
 import { drawEntity } from './lib/renderer';
 import { audio } from './lib/audio';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, X, Volume2, Vibrate, Pause, Play } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, X, RotateCcw, Volume2, Vibrate, Pause, Play, Share2, Gamepad2, Star } from 'lucide-react';
+
+const DEFAULT_CONTROL_POSITIONS = { 
+   up: { x: 0, y: 0 }, 
+   down: { x: 0, y: 0 }, 
+   left: { x: 0, y: 0 }, 
+   right: { x: 0, y: 0 },
+   trap: { x: 0, y: 0 },
+   settings: { x: 0, y: 0 },
+   home: { x: 0, y: 0 },
+   joystick: { x: 0, y: 0 }
+};
 
 interface Props {
   key?: string | number;
@@ -14,6 +25,12 @@ interface Props {
   multiplier: number;
   theme?: 'default' | 'oled' | 'deep';
   controllerType?: string;
+  haptics: boolean;
+  music: boolean;
+  setTheme: (t: 'default' | 'oled' | 'deep') => void;
+  setControllerType: (c: 'dpad' | 'joystick' | 'swipe') => void;
+  setHaptics: (h: boolean) => void;
+  setMusic: (m: boolean) => void;
   isPaused: boolean;
   onGameOver: (win: boolean, finalScore: number) => void;
   onGoHome: () => void;
@@ -21,7 +38,26 @@ interface Props {
   onEditDone?: () => void;
 }
 
-export function GameCanvas({ level, mode, difficulty, score, multiplier, theme = 'default', controllerType = 'dpad', isPaused, onGameOver, onGoHome, startInEditMode = false, onEditDone }: Props) {
+export function GameCanvas({ 
+  level, 
+  mode, 
+  difficulty, 
+  score, 
+  multiplier, 
+  theme = 'default', 
+  controllerType = 'dpad', 
+  haptics,
+  music,
+  setTheme,
+  setControllerType,
+  setHaptics,
+  setMusic,
+  isPaused, 
+  onGameOver, 
+  onGoHome, 
+  startInEditMode = false, 
+  onEditDone 
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine>(new GameEngine());
   const scoreRef = useRef<HTMLSpanElement>(null);
@@ -35,26 +71,22 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUserPaused, setIsUserPaused] = useState(false);
   const [volume, setVolume] = useState(audio.volume * 100);
+  const constraintsRef = useRef<HTMLDivElement>(null);
+
   const [controlPositions, setControlPositions] = useState(() => {
-    const defaults = { 
-       up: { x: 0, y: 0 }, 
-       down: { x: 0, y: 0 }, 
-       left: { x: 0, y: 0 }, 
-       right: { x: 0, y: 0 },
-       trap: { x: 0, y: 0 },
-       settings: { x: 0, y: 0 },
-       score: { x: 0, y: 0 },
-       home: { x: 0, y: 0 },
-       joystick: { x: 0, y: 0 }
-    };
     try {
       const saved = localStorage.getItem('control_pos_v7');
       if (saved) {
-         return { ...defaults, ...JSON.parse(saved) };
+         return { ...DEFAULT_CONTROL_POSITIONS, ...JSON.parse(saved) };
       }
     } catch (e) {}
-    return defaults;
+    return DEFAULT_CONTROL_POSITIONS;
   });
+
+  const resetControls = () => {
+    setControlPositions(DEFAULT_CONTROL_POSITIONS);
+    localStorage.removeItem('control_pos_v7');
+  };
 
   const saveControlPositions = (key: string, _e: any, info: any) => {
      const newPos = {
@@ -263,8 +295,10 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
         const sorted = [...engine.entities].sort((a, b) => {
            let scoreA = 0;
            let scoreB = 0;
+           if (String(a.species).includes('trap')) scoreA -= 5;
            if (['cheese', 'milk', 'water', 'carrot', 'leaf'].includes(a.species)) scoreA -= 2;
            if (a.state === 'caught') scoreA -= 1;
+           if (String(b.species).includes('trap')) scoreB -= 5;
            if (['cheese', 'milk', 'water', 'carrot', 'leaf'].includes(b.species)) scoreB -= 2;
            if (b.state === 'caught') scoreB -= 1;
            return scoreA - scoreB;
@@ -377,6 +411,21 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
      engineRef.current.placeTrap();
   };
 
+  const handleRestart = () => {
+    resetControls();
+    setSteps(0);
+    setHasTrap(false);
+    hasTrapRef.current = false;
+    
+    const rect = canvasRef.current?.parentElement?.getBoundingClientRect() || { width: 400, height: 800 };
+    const aspectRatio = rect.height / rect.width;
+    
+    engineRef.current.initList(level, mode, difficulty, aspectRatio, (win) => {
+       setTimeout(()=>onGameOverRef.current(win, engineRef.current.score), 100);
+    });
+    setIsSettingsOpen(false);
+  };
+
   const padZero = (n: number) => n < 10 ? `0${n}` : `${n}`;
   const displayTime = `${padZero(Math.floor(steps/60))}:${padZero(steps%60)}`;
 
@@ -405,9 +454,11 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       );
 
   return (
-    <div className={`w-full h-[100dvh] fixed inset-0 text-[#65a30d] font-mono flex flex-col overflow-hidden md:p-6 z-0 bg-transparent`}>
-      
-      {/* Main Gameplay Layout */}
+    <div className={`w-full h-[100dvh] fixed inset-0 text-[#65a30d] font-mono flex flex-col overflow-hidden z-0 bg-transparent`}>
+      {/* Invisible boundary container for drag constraints */}
+      <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-[-1]" aria-hidden="true" />
+
+       {/* Main Gameplay Layout */}
       <div className="flex-1 flex flex-col md:grid md:grid-cols-12 gap-0 md:gap-8 min-h-0 relative items-center md:items-stretch">
         
         {/* Left Sidebar: Level Progress */}
@@ -449,13 +500,22 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
         {/* Global Controls */}
         <div className="fixed inset-0 z-[90] pointer-events-none overflow-hidden" style={{ touchAction: 'none' }}>
             {/* Top Close Button for quick exit to home */}
-            <motion.button 
-               whileTap={{ scale: 0.9 }}
-               onClick={() => onGoHome()}
-               className={`absolute top-4 right-4 z-[100] w-10 h-10 rounded-full border border-white/20 bg-black/40 flex items-center justify-center text-white/50 hover:bg-white/10 transition-all pointer-events-auto`}
-            >
-               <X size={20} />
-            </motion.button>
+            <div className="absolute top-4 right-4 z-[100] flex gap-3 pointer-events-auto">
+               <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsSettingsOpen(true)}
+                  className={`w-10 h-10 rounded-full border border-white/20 bg-black/40 flex items-center justify-center text-white/50 hover:bg-white/10 transition-all`}
+               >
+                  <Settings size={20} />
+               </motion.button>
+               <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => onGoHome()}
+                  className={`w-10 h-10 rounded-full border border-white/20 bg-black/40 flex items-center justify-center text-white/50 hover:bg-white/10 transition-all`}
+               >
+                  <X size={20} />
+               </motion.button>
+            </div>
         </div>
 
         {/* Right Sidebar: Controls & Legend */}
@@ -503,20 +563,6 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
         </aside>
       </div>
 
-      {/* Global Stats Display (Formerly under canvas) */}
-      <motion.div 
-         animate={{ x: controlPositions.score.x, y: controlPositions.score.y }}
-         drag={isEditingControls}
-         dragMomentum={false}
-         onDragEnd={(e, info) => saveControlPositions('score', e, info)}
-         className={`fixed bottom-20 sm:bottom-6 left-6 z-[70] flex flex-col gap-2 text-[#65a30d] uppercase text-[10px] tracking-widest opacity-90 ${isEditingControls ? 'pointer-events-auto border-2 border-dashed border-[#65a30d] p-2 bg-black/40 rounded-xl rounded-tr-none touch-none' : 'pointer-events-none'}`}
-      >
-        <div className="flex flex-col gap-0.5 pointer-events-none">
-          <span className="opacity-50">Score</span>
-          <span ref={scoreRef} className="font-bold text-lg tracking-wider">0</span>
-        </div>
-      </motion.div>
-
       {/* Pause Overlay */}
       <AnimatePresence>
         {isUserPaused && !isSettingsOpen && !isPaused && (
@@ -557,21 +603,193 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
                 Settings
               </h2>
 
+              <button 
+                onClick={handleRestart}
+                className={`w-full mb-10 p-5 rounded-2xl border-2 flex items-center justify-center gap-3 font-black uppercase tracking-[0.2em] text-lg shadow-lg hover:shadow-xl transition-all active:scale-95 z-50 ${theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#a3e635] text-[#022c22] border-[#65a30d]'}`}
+              >
+                <RotateCcw size={28} className="animate-spin-slow" />
+                RESTART
+              </button>
+
               <div className="flex flex-col gap-8 text-left">
-                {/* High Score */}
-                <div className={`${theme === 'oled' ? 'bg-[#000] border-[#333]' : 'bg-[#022c22] border-[#047857]/50'} border p-4 rounded-xl flex items-center justify-between`}>
-                  <span className={`flex items-center gap-2 uppercase text-sm tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
-                    High Score
+                {/* Customize Layout - Highlighted */}
+                {(controllerType === 'dpad' || controllerType === 'joystick') && (
+                  <div className={`${theme === 'oled' ? 'bg-[#222] border-[#555]' : 'bg-[#064e3b] border-[#65a30d]'} border-2 p-4 rounded-xl flex flex-col gap-3`}>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className={`flex items-center gap-2 uppercase text-sm tracking-widest font-black ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
+                        <Settings size={18} /> Customize Layout
+                      </span>
+                      <button 
+                        onClick={() => {
+                            setIsSettingsOpen(false);
+                            setIsEditingControls(true);
+                        }}
+                        className={`${theme === 'oled' ? 'bg-[#ddd] hover:bg-white text-black' : 'bg-[#65a30d] hover:bg-[#a3e635] text-[#022c22]'} px-5 py-2.5 rounded-lg text-sm font-black uppercase tracking-widest transition-transform hover:scale-105 active:scale-95 flex items-center gap-2`}
+                      >
+                        <Settings size={16} /> Edit Now
+                      </button>
+                    </div>
+                    <p className={`text-[10px] sm:text-xs opacity-90 ${theme === 'oled' ? 'text-gray-400' : 'text-[#a3e635]'}`}>
+                      Drag and drop to reposition the {controllerType === 'joystick' ? 'JOYSTICK' : 'D-PAD'} and buttons according to your playstyle.
+                    </p>
+                  </div>
+                )}
+
+                {/* Forest Ambience Control */}
+                <div className="flex items-center justify-between gap-4">
+                  <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                    <Volume2 size={16} /> Forest Ambience
                   </span>
-                  <span className={`text-2xl font-mono font-black tracking-wider ${theme === 'oled' ? 'text-gray-300' : 'text-[#65a30d]'}`}>
-                    {Number(localStorage.getItem('maza_high_score') || 0).toLocaleString()}
-                  </span>
+                  <button 
+                    onClick={() => {
+                       const m = !music;
+                       setMusic(m);
+                       audio.setMusic(m);
+                    }}
+                    className={`w-14 h-8 rounded-full p-1 transition-colors relative ${music ? (theme === 'oled' ? 'bg-white' : 'bg-[#65a30d]') : (theme === 'oled' ? 'bg-[#333]' : 'bg-[#022c22]')}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full transition-transform ${theme === 'oled' ? (music ? 'bg-[#222]' : 'bg-[#111]') : 'bg-[#064e3b]'} ${music ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  </button>
                 </div>
 
+                <div className={`w-full h-px my-[-10px] ${theme === 'oled' ? 'bg-[#333]' : 'bg-[#15803d]/30'}`}></div>
+
+                {/* Haptics Control */}
+                <div className="flex items-center justify-between gap-4">
+                  <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                    <Vibrate size={16} /> Haptic Feedback
+                  </span>
+                  <button 
+                    onClick={() => {
+                       const h = !haptics;
+                       setHaptics(h);
+                       audio.setHaptics(h);
+                       if (h) audio.vibrate(50);
+                    }}
+                    className={`w-14 h-8 rounded-full p-1 transition-colors relative ${haptics ? (theme === 'oled' ? 'bg-white' : 'bg-[#65a30d]') : (theme === 'oled' ? 'bg-[#333]' : 'bg-[#022c22]')}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full transition-transform ${theme === 'oled' ? (haptics ? 'bg-[#222]' : 'bg-[#111]') : 'bg-[#064e3b]'} ${haptics ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                  </button>
+                </div>
+                
+                <div className={`w-full h-px my-[-10px] ${theme === 'oled' ? 'bg-[#333]' : 'bg-[#15803d]/30'}`}></div>
+
+                {/* Theme Settings */}
+                <div className="flex flex-col gap-3">
+                  <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                    Theme
+                  </span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2 justify-between">
+                      <button 
+                        onClick={() => setTheme('default')}
+                        className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors border ${theme === 'default' ? 'bg-[#65a30d] text-[#022c22] border-[#65a30d]' : (theme === 'oled' ? 'bg-[#222] text-[#ccc] border-[#444] hover:bg-[#333]' : 'bg-[#022c22] text-[#65a30d] border-[#15803d]')}`}>
+                        Default
+                      </button>
+                      <button 
+                        onClick={() => setTheme('oled')}
+                        className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-colors border ${theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#111] border-[#333] hover:bg-[#222]'}`}>
+                        OLED
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-[#15803d]/30 my-[-10px]"></div>
+
+                {/* Controller Settings */}
+                <div className="flex flex-col gap-3">
+                  <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                    Controller
+                  </span>
+                  <div className="flex gap-2 justify-between">
+                    <button 
+                      onClick={() => setControllerType('dpad')}
+                      className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border ${controllerType === 'dpad' ? (theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#65a30d] text-[#022c22] border-[#65a30d]') : (theme === 'oled' ? 'bg-[#222] text-[#ccc] border-[#444] hover:bg-[#333]' : 'bg-[#022c22] text-[#65a30d] border-[#15803d]')}`}>
+                      D-PAD
+                    </button>
+                    <button 
+                      onClick={() => setControllerType('joystick')}
+                      className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border ${controllerType === 'joystick' ? (theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#65a30d] text-[#022c22] border-[#65a30d]') : (theme === 'oled' ? 'bg-[#222] text-[#ccc] border-[#444] hover:bg-[#333]' : 'bg-[#022c22] text-[#65a30d] border-[#15803d]')}`}>
+                      Joystick
+                    </button>
+                    <button 
+                      onClick={() => setControllerType('swipe')}
+                      className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border ${controllerType === 'swipe' ? (theme === 'oled' ? 'bg-white text-black border-white' : 'bg-[#65a30d] text-[#022c22] border-[#65a30d]') : (theme === 'oled' ? 'bg-[#222] text-[#ccc] border-[#444] hover:bg-[#333]' : 'bg-[#022c22] text-[#65a30d] border-[#15803d]')}`}>
+                      Swipe
+                    </button>
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-[#15803d]/30 my-[-10px]"></div>
+
+                {/* Social Buttons */}
+                <div className="flex flex-col gap-3">
+                  <span className={`flex items-center gap-2 opacity-80 uppercase text-xs tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#a3e635]'}`}>
+                    Support & Share
+                  </span>
+                  <div className="flex flex-col gap-2">
+                    <button
+                        onClick={() => {
+                            if (navigator.share) {
+                                navigator.share({
+                                    title: 'Jungle Survival Game',
+                                    text: 'Check out Jungle Survival Game!',
+                                    url: window.location.href,
+                                }).catch(console.error);
+                            } else {
+                                alert('Share not supported on this browser');
+                            }
+                        }}
+                        className={`w-full py-3 rounded-xl border-2 border-b-4 flex items-center justify-center gap-3 font-black text-sm tracking-widest transition-all active:border-b-2 active:translate-y-[2px] ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#a3e635] border-[#65a30d] text-[#022c22] hover:bg-[#bef264]'}`}
+                    >
+                        <Share2 size={18} />
+                        SHARE GAME
+                    </button>
+                    
+                    <div className="flex gap-2">
+                       <button
+                          className={`flex-1 py-3 rounded-xl border-2 border-b-4 flex items-center justify-center gap-2 font-black text-[10px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#022c22] border-[#15803d] text-[#65a30d] hover:bg-[#064e3b]'}`}
+                       >
+                          <Gamepad2 size={16} />
+                          MORE GAMES
+                       </button>
+                       <button
+                          className={`flex-1 py-3 rounded-xl border-2 border-b-4 flex items-center justify-center gap-2 font-black text-[10px] tracking-widest transition-all active:border-b-2 active:translate-y-[2px] ${theme === 'oled' ? 'bg-[#222] border-[#444] text-white hover:bg-[#333]' : 'bg-[#022c22] border-[#15803d] text-[#65a30d] hover:bg-[#064e3b]'}`}
+                       >
+                          <Star size={16} />
+                          FEEDBACK
+                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-[#15803d]/30 my-[-10px]"></div>
+
+                {/* Score Summary */}
+                <div className="flex flex-col gap-3">
+                  <div className={`${theme === 'oled' ? 'bg-[#000] border-[#333]' : 'bg-[#022c22] border-[#047857]/50'} border p-4 rounded-xl flex items-center justify-between`}>
+                    <span className={`flex items-center gap-2 uppercase text-sm tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
+                      Current Score
+                    </span>
+                    <span ref={scoreRef} className={`text-2xl font-mono font-black tracking-wider ${theme === 'oled' ? 'text-gray-300' : 'text-[#65a30d]'}`}>
+                      {score}
+                    </span>
+                  </div>
+
+                  <div className={`${theme === 'oled' ? 'bg-[#000] border-[#333]' : 'bg-[#022c22] border-[#047857]/50'} border p-4 rounded-xl flex items-center justify-between`}>
+                    <span className={`flex items-center gap-2 uppercase text-sm tracking-widest font-bold ${theme === 'oled' ? 'text-white' : 'text-[#65a30d]'}`}>
+                      Best Score
+                    </span>
+                    <span className={`text-2xl font-mono font-black tracking-wider ${theme === 'oled' ? 'text-gray-300' : 'text-[#65a30d]'}`}>
+                      {Number(localStorage.getItem('maza_high_score') || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-10 text-[10px] uppercase opacity-40 tracking-widest">
-                Maze Runner v6.0
+                Jungle Rule V1.0
               </div>
             </div>
           </motion.div>
@@ -579,7 +797,7 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
       </AnimatePresence>
 
       {/* Absolute Drag-and-drop Controls Overlay */}
-      <div className="fixed inset-0 z-[60] pointer-events-none overflow-hidden block md:hidden" style={{ touchAction: 'none' }}>
+      <div className="absolute inset-0 z-[60] pointer-events-none overflow-hidden block md:hidden" style={{ touchAction: 'none' }}>
         {isEditingControls && (
            <button 
               onClick={() => {
@@ -599,6 +817,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
                 animate={{ x: controlPositions.up.x, y: controlPositions.up.y }}
                 drag={isEditingControls}
                 dragMomentum={false}
+                dragConstraints={constraintsRef}
+                dragElastic={0}
                 onDragEnd={(e, info) => saveControlPositions('up', e, info)}
                 onPointerDown={() => !isEditingControls && handleDir('UP')}
                 onPointerUp={() => !isEditingControls && handleDir(null)}
@@ -613,6 +833,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
            animate={{ x: controlPositions.down.x, y: controlPositions.down.y }}
            drag={isEditingControls}
            dragMomentum={false}
+           dragConstraints={constraintsRef}
+           dragElastic={0}
            onDragEnd={(e, info) => saveControlPositions('down', e, info)}
            onPointerDown={() => !isEditingControls && handleDir('DOWN')}
            onPointerUp={() => !isEditingControls && handleDir(null)}
@@ -627,6 +849,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
            animate={{ x: controlPositions.left.x, y: controlPositions.left.y }}
            drag={isEditingControls}
            dragMomentum={false}
+           dragConstraints={constraintsRef}
+           dragElastic={0}
            onDragEnd={(e, info) => saveControlPositions('left', e, info)}
            onPointerDown={() => !isEditingControls && handleDir('LEFT')}
            onPointerUp={() => !isEditingControls && handleDir(null)}
@@ -641,6 +865,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
                 animate={{ x: controlPositions.right.x, y: controlPositions.right.y }}
                 drag={isEditingControls}
                 dragMomentum={false}
+                dragConstraints={constraintsRef}
+                dragElastic={0}
                 onDragEnd={(e, info) => saveControlPositions('right', e, info)}
                 onPointerDown={() => !isEditingControls && handleDir('RIGHT')}
                 onPointerUp={() => !isEditingControls && handleDir(null)}
@@ -658,12 +884,14 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
               animate={{ x: controlPositions.joystick.x, y: controlPositions.joystick.y }}
               drag={isEditingControls}
               dragMomentum={false}
+              dragConstraints={constraintsRef}
+              dragElastic={0}
               onDragEnd={(e, info) => saveControlPositions('joystick', e, info)}
-              className={`absolute w-full z-30 pointer-events-auto ${isEditingControls ? 'cursor-move' : ''}`} 
-              style={{ left: '0', top: '75%', marginTop: '-32px', touchAction: 'none' }}
+              className={`absolute w-32 h-32 z-30 pointer-events-auto ${isEditingControls ? 'cursor-move' : ''}`} 
+              style={{ left: '50%', top: '75%', marginLeft: '-64px', marginTop: '-64px', touchAction: 'none' }}
            >
               <div 
-                 className={`w-32 h-32 rounded-full border-4 mx-auto relative flex items-center justify-center ${theme === 'oled' ? 'border-white/20 bg-white/5' : 'border-[#65a30d]/20 bg-[#84cc16]/5'} ${isEditingControls ? 'border-dashed border-white/40 bg-white/10' : ''}`}
+                 className={`w-full h-full rounded-full border-4 relative flex items-center justify-center ${theme === 'oled' ? 'border-white/20 bg-white/5' : 'border-[#65a30d]/20 bg-[#84cc16]/5'} ${isEditingControls ? 'border-dashed border-white/40 bg-white/10' : ''}`}
                  onPointerDown={(e) => {
                      if (isEditingControls) return;
                      const rect = e.currentTarget.getBoundingClientRect();
@@ -717,16 +945,18 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
            <div className="hidden"></div>
         )}
 
-        <motion.button 
+        <motion.div
            animate={{ x: controlPositions.trap.x, y: controlPositions.trap.y }}
-           drag={true}
+           drag={isEditingControls}
            dragMomentum={false}
+           dragConstraints={constraintsRef}
+           dragElastic={0}
            onDragEnd={(e, info) => saveControlPositions('trap', e, info)}
            onTap={() => {
               if (!isEditingControls) handleTrap();
            }}
-           className={`absolute w-12 h-12 sm:w-16 sm:h-16 rounded-xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-[80] ${trapCtrlBase} !cursor-grab active:!cursor-grabbing`}
-           style={{ left: '50%', top: '75%', marginLeft: '112px', marginTop: '-32px' }}
+           className={`absolute w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center transition-all touch-manipulation pointer-events-auto z-[80] shadow-lg ${trapCtrlBase} !cursor-grab active:!cursor-grabbing`}
+           style={{ left: '1.5rem', bottom: '1.5rem', touchAction: 'none', position: 'absolute' }}
         >
           <span className="text-xl sm:text-2xl ">
              {mode === 'survival_rat' || mode === 'hunter_dog' ? '🥛' : 
@@ -737,7 +967,8 @@ export function GameCanvas({ level, mode, difficulty, score, multiplier, theme =
               mode === 'hunter_frog' ? '🌿' :
               mode === 'hunter_lion' ? '💧' : '🪤'}
           </span>
-        </motion.button>
+        </motion.div>
+
       </div>
 
       {/* Footer Bar */}

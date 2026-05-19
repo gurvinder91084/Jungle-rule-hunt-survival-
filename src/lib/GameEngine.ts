@@ -203,21 +203,40 @@ export class GameEngine {
     const player = this.entities.find((e) => e.isPlayer);
     if (!player) return;
 
-    // Determine trap based on what the player is hunting OR what the player is fleeing?
-    // Hunter mode: Player is predator, places trap for prey.
-    // Survival mode: Player is prey, places trap for predator?
-    let trapType = "";
-    if (this.mode === "survival_rat") trapType = "trap_cat"; // Rat places trap for Cat
-    if (this.mode === "survival_cat") trapType = "trap_dog"; // Cat for Dog
-    if (this.mode === "survival_deer") trapType = "trap_lion"; // Deer for Lion
-    if (this.mode === "survival_rabbit") trapType = "trap_wolf";
-    if (this.mode === "survival_bug") trapType = "trap_frog";
+    // Determine target based on what the player is hunting OR what the player is fleeing
+    let targetSpecies = "";
+    if (this.mode.startsWith("survival")) {
+      // Survival mode: player is fleeing. Trap should be for the predator.
+      // We look for any entity that is actively chasing the player species
+      const predator = this.entities.find(e => e.ai && typeof e.ai === 'string' && e.ai.includes(`chase_${player.species}`));
+      if (predator) {
+        targetSpecies = predator.species;
+      } else {
+        // Fallback to mode strings if no active predator found
+        if (this.mode === "survival_rat") targetSpecies = "cat";
+        else if (this.mode === "survival_cat") targetSpecies = "dog";
+        else if (this.mode === "survival_deer") targetSpecies = "lion";
+        else if (this.mode === "survival_rabbit") targetSpecies = "wolf";
+        else if (this.mode === "survival_bug") targetSpecies = "frog";
+      }
+    } else if (this.mode.startsWith("hunter")) {
+      // Hunter mode: player is predator. Trap should be for the prey.
+      // The target is usually the "isTarget" entity
+      const prey = this.entities.find(e => e.isTarget);
+      if (prey) {
+        targetSpecies = prey.species;
+      } else {
+        // Fallback to mode strings
+        if (this.mode === "hunter_cat") targetSpecies = "rat";
+        else if (this.mode === "hunter_dog") targetSpecies = "cat";
+        else if (this.mode === "hunter_lion") targetSpecies = "deer";
+        else if (this.mode === "hunter_wolf") targetSpecies = "rabbit";
+        else if (this.mode === "hunter_frog") targetSpecies = "bug";
+      }
+    }
 
-    if (this.mode === "hunter_cat") trapType = "trap_rat"; // Cat for Rat
-    if (this.mode === "hunter_dog") trapType = "trap_cat"; // Dog for Cat
-    if (this.mode === "hunter_lion") trapType = "trap_deer"; // Lion for Deer
-    if (this.mode === "hunter_wolf") trapType = "trap_rabbit";
-    if (this.mode === "hunter_frog") trapType = "trap_bug";
+    if (!targetSpecies) return;
+    const trapType = "trap_" + targetSpecies;
 
     const existingTrapIndex = this.entities.findIndex(
       (e) => e.species === trapType,
@@ -242,7 +261,7 @@ export class GameEngine {
       dir: 0,
       speed: 0,
       state: "idle",
-      stateTimer: 4.0,
+      stateTimer: this.mode.startsWith("survival") ? 6.0 : 999, // Longer duration in survival, infinite in hunter
     };
     this.entities.push(trap);
     audio.play("trap");
