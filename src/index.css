@@ -1,1 +1,94 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Lilita+One&family=Kanit:ital,wght@0,900;1,900&family=Cinzel+Decorative:wght@900&family=Rubik+Mono+One&family=Space+Grotesk:wght@700;900&display=swap');
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Base custom classes for the beautiful 3D typographies */
+
+/* 1. JUNGLE & RULE: Mossy Stone / Vibrant Green Rift Style */
+.text-3d-jungle-base {
+  font-family: 'Lilita One', 'Arial Black', sans-serif;
+  text-transform: uppercase;
+  color: #adfa1d; /* Neon green face */
+  -webkit-text-stroke: 1.5px #14532d;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  text-shadow:
+    0 1px 0 #16a34a,
+    0 2px 0 #15803d,
+    0 3px 0 #166534,
+    0 4px 0 #14532d,
+    0 5px 0 #064e3b,
+    0 6px 0 #022c22,
+    0 7px 0 #0b130e,
+    0 8px 10px rgba(0, 0, 0, 0.9),
+    0 0 15px rgba(22, 163, 74, 0.6);
+}
+
+.text-3d-jungle-inner {
+  font-family: 'Lilita One', 'Arial Black', sans-serif;
+  text-transform: uppercase;
+  color: #fef08a; /* Soft neon yellow center core */
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.8);
+}
+
+/* 2. HUNT & LIVE: Forged Metallic Copper / Burnished Amber Style */
+.text-3d-hunt-base {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #f97316; /* Copper-amber face */
+  -webkit-text-stroke: 1.5px #431407;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+  text-shadow:
+    0 1px 0 #ea580c,
+    0 2px 0 #c2410c,
+    0 3px 0 #9a3412,
+    0 4px 0 #7c2d12,
+    0 5px 0 #431407,
+    0 6px 0 #2d0e05,
+    0 7px 0 #170702,
+    0 8px 10px rgba(0, 0, 0, 0.95),
+    0 0 15px rgba(249, 115, 22, 0.6);
+}
+
+.text-3d-hunt-inner {
+  font-family: 'Kanit', sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #ffedd5; /* Pure iron white highlight */
+  text-shadow: 0 0 8px rgba(234, 88, 12, 0.8);
+}
+
+/* 3. MAZA: Holographic Emerald Crystal & Liquid Gold Style */
+.text-3d-maza-base {
+  font-family: 'Rubik Mono One', sans-serif;
+  text-transform: uppercase;
+  color: #10b981; /* Crystal emerald green face */
+  -webkit-text-stroke: 1.5px #022c22;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.6));
+  text-shadow:
+    0 1px 0 #059669,
+    0 2px 0 #047857,
+    0 3px 0 #065f46,
+    0 4px 0 #064e3b,
+    0 5px 0 #10b981, /* goldish reflex border layer */
+    0 6px 0 #f59e0b, 
+    0 7px 0 #78350f,
+    0 8px 0 #451a03,
+    0 9px 12px rgba(0, 0, 0, 0.95),
+    0 0 25px rgba(16, 185, 129, 0.7);
+}
+
+/* Dynamic ambient jungle lighting shadows */
+.shadow-glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 12 emerald, 0.4);
+}
+.shadow-glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}

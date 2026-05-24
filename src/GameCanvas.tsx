@@ -4,6 +4,7 @@ import { drawEntity } from './lib/renderer';
 import { audio } from './lib/audio';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, X, RotateCcw, Volume2, Vibrate, Pause, Play, Share2, Gamepad2, Star } from 'lucide-react';
+import { getSocket } from './lib/multiplayer';
 
 const DEFAULT_CONTROL_POSITIONS = { 
    up: { x: 0, y: 0 }, 
@@ -36,7 +37,36 @@ interface Props {
   onGoHome: () => void;
   startInEditMode?: boolean;
   onEditDone?: () => void;
+  isOnline?: boolean;
+  onlineRole?: 'cat' | 'rat' | null;
+  onlineRoomId?: string | null;
 }
+
+const trapIcons: Record<string, string> = {
+  // Survival (Placing traps for predators)
+  survival_rat: '🥛', // for cat
+  survival_cat: '🥩', // for dog
+  survival_deer: '🥩', // for lion
+  survival_rabbit: '🥩', // for wolf
+  survival_bug: '🦟', // for frog
+  survival_squirrel: '🥩', // for hawk
+  survival_owl: '🥩', // for fox
+  survival_elephant: '🥩', // for tiger
+  survival_bear: '🥩', // for panther
+  survival_gecko: '🥩', // for cheetah
+
+  // Hunter (Placing baits for prey)
+  hunter_cat: '🧀', // lures rat
+  hunter_dog: '🥛', // lures cat
+  hunter_lion: '💧', // lures deer
+  hunter_wolf: '🥕', // lures rabbit
+  hunter_frog: '🌿', // lures bug
+  hunter_cheetah: '🦟', // lures gecko
+  hunter_tiger: '🌿', // lures elephant
+  hunter_panther: '🍯', // lures bear
+  hunter_hawk: '🌰', // lures squirrel
+  hunter_fox: '🐛', // lures owl
+};
 
 export function GameCanvas({ 
   level, 
@@ -56,7 +86,10 @@ export function GameCanvas({
   onGameOver, 
   onGoHome, 
   startInEditMode = false, 
-  onEditDone 
+  onEditDone,
+  isOnline = false,
+  onlineRole,
+  onlineRoomId
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine>(new GameEngine());
@@ -72,6 +105,7 @@ export function GameCanvas({
   const [isUserPaused, setIsUserPaused] = useState(false);
   const [volume, setVolume] = useState(audio.volume * 100);
   const constraintsRef = useRef<HTMLDivElement>(null);
+  const lastSentCoords = useRef({ x: -1, y: -1, tx: -1, ty: -1 });
 
   const [controlPositions, setControlPositions] = useState(() => {
     try {
@@ -147,8 +181,71 @@ export function GameCanvas({
     }
     
     engine.initList(level, mode, difficulty, aspectRatio, (win) => {
+       if (isOnline && onlineRoomId) {
+          const sock = getSocket();
+          if (sock) {
+             sock.emit('gameStateChange', { roomId: onlineRoomId, state: win ? 'win' : 'lose' });
+          }
+       }
        setTimeout(()=>onGameOverRef.current(win, engine.score), 100);
     });
+
+    if (isOnline) {
+       // Disable local AI decision loops for the opponent since coordinates are driven entirely by network updates
+       engine.entities.forEach(e => {
+          if (!e.isPlayer) {
+             e.ai = 'none';
+          }
+       });
+    }
+
+    // Bind Socket.io matchmaking event receivers
+    const socket = getSocket();
+
+    const handleOpponentUpdate = (data: { x: number; y: number; tx: number; ty: number; vx: number; vy: number; dir?: number }) => {
+       const opponent = engine.entities.find(e => !e.isPlayer && (e.species === 'cat' || e.species === 'rat'));
+       if (opponent) {
+          opponent.x = data.x;
+          opponent.y = data.y;
+          opponent.tx = data.tx;
+          opponent.ty = data.ty;
+          opponent.cx = data.x * engine.cellSize;
+          opponent.cy = data.y * engine.cellSize;
+          if (data.dir !== undefined) {
+             opponent.dir = data.dir;
+          }
+       }
+    };
+
+    const handleOpponentTrapPlaced = (data: { x: number; y: number; id: string }) => {
+       let oppTrapType = 'trap_rat';
+       if (onlineRole === 'cat') {
+          oppTrapType = 'trap_cat';
+       }
+       engine.placeOpponentTrapCustom(data.x, data.y, data.id, oppTrapType);
+    };
+
+    const handleOpponentGameStateChange = (data: { state: string }) => {
+       if (data.state === 'win') {
+          // The opponent has achieved victory, signaling our defeat!
+          onGameOverRef.current(false, engine.score);
+       } else if (data.state === 'lose') {
+          // The opponent failed, marking our absolute victory!
+          onGameOverRef.current(true, engine.score);
+       }
+    };
+
+    const handleOpponentDisconnected = () => {
+       alert("Opponent has disconnected. Returning to main menu.");
+       onGoHome();
+    };
+
+    if (isOnline && socket && onlineRoomId) {
+       socket.on('opponentUpdate', handleOpponentUpdate);
+       socket.on('opponentTrapPlaced', handleOpponentTrapPlaced);
+       socket.on('opponentGameStateChange', handleOpponentGameStateChange);
+       socket.on('opponentDisconnected', handleOpponentDisconnected);
+    }
 
     let rafId: number;
     let lastTime = performance.now();
@@ -169,6 +266,32 @@ export function GameCanvas({
       }
       
       engine.update(dt);
+
+      // Stream local coordinates to online opponent
+      const localPlayer = engine.entities.find(e => e.isPlayer);
+      if (localPlayer && isOnline && onlineRoomId) {
+         if (
+            localPlayer.x !== lastSentCoords.current.x ||
+            localPlayer.y !== lastSentCoords.current.y ||
+            localPlayer.tx !== lastSentCoords.current.tx ||
+            localPlayer.ty !== lastSentCoords.current.ty
+         ) {
+            const sock = getSocket();
+            if (sock) {
+               sock.emit('playerUpdate', {
+                  roomId: onlineRoomId,
+                  x: localPlayer.x,
+                  y: localPlayer.y,
+                  tx: localPlayer.tx,
+                  ty: localPlayer.ty,
+                  vx: 0,
+                  vy: 0,
+                  dir: localPlayer.dir
+               });
+            }
+            lastSentCoords.current = { x: localPlayer.x, y: localPlayer.y, tx: localPlayer.tx, ty: localPlayer.ty };
+         }
+      }
 
       if (scoreRef.current) scoreRef.current.textContent = engine.score.toString();
       if (multiplierRef.current) multiplierRef.current.textContent = engine.multiplier.toFixed(1);
@@ -400,15 +523,32 @@ export function GameCanvas({
        engine.active = false;
        audio.onPlay = undefined;
        audio.stopBGM();
+       if (isOnline && socket) {
+          socket.off('opponentUpdate', handleOpponentUpdate);
+          socket.off('opponentTrapPlaced', handleOpponentTrapPlaced);
+          socket.off('opponentGameStateChange', handleOpponentGameStateChange);
+          socket.off('opponentDisconnected', handleOpponentDisconnected);
+       }
     };
-  }, [level, mode, controllerType]);
+  }, [level, mode, controllerType, isOnline, onlineRole, onlineRoomId]);
 
   const handleDir = (d: 'UP'|'DOWN'|'LEFT'|'RIGHT'|null) => {
      engineRef.current.playerInput = d;
   };
 
   const handleTrap = () => {
-     engineRef.current.placeTrap();
+     const trap = engineRef.current.placeTrap();
+     if (isOnline && onlineRoomId && trap) {
+        const socket = getSocket();
+        if (socket) {
+           socket.emit('trapPlaced', {
+              roomId: onlineRoomId,
+              x: trap.x,
+              y: trap.y,
+              id: trap.id
+           });
+        }
+     }
   };
 
   const handleRestart = () => {
@@ -959,13 +1099,7 @@ export function GameCanvas({
            style={{ left: '1.5rem', bottom: '1.5rem', touchAction: 'none', position: 'absolute' }}
         >
           <span className="text-xl sm:text-2xl ">
-             {mode === 'survival_rat' || mode === 'hunter_dog' ? '🥛' : 
-              mode === 'survival_cat' || mode === 'survival_deer' || mode === 'survival_rabbit' ? '🥩' :
-              mode === 'survival_bug' ? '🦟' :
-              mode === 'hunter_wolf' ? '🥕' :
-              mode === 'hunter_cat' ? '🧀' :
-              mode === 'hunter_frog' ? '🌿' :
-              mode === 'hunter_lion' ? '💧' : '🪤'}
+             {trapIcons[mode] || '🪤'}
           </span>
         </motion.div>
 

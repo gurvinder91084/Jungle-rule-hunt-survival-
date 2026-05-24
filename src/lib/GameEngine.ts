@@ -28,6 +28,11 @@ export class GameEngine {
     if (this.mode === "survival_deer") return "flee_lion";
     if (this.mode === "survival_rabbit") return "flee_wolf";
     if (this.mode === "survival_bug") return "flee_frog";
+    if (this.mode === "survival_squirrel") return "flee_hawk";
+    if (this.mode === "survival_owl") return "flee_fox";
+    if (this.mode === "survival_elephant") return "flee_tiger";
+    if (this.mode === "survival_bear") return "flee_panther";
+    if (this.mode === "survival_gecko") return "flee_cheetah";
     return null;
   }
 
@@ -141,6 +146,31 @@ export class GameEngine {
       targetSp = "leaf";
       predatorSp = "frog";
     }
+    if (m === "survival_squirrel") {
+      playerSp = "squirrel";
+      targetSp = "leaf";
+      predatorSp = "hawk";
+    }
+    if (m === "survival_owl") {
+      playerSp = "owl";
+      targetSp = "leaf";
+      predatorSp = "fox";
+    }
+    if (m === "survival_elephant") {
+      playerSp = "elephant";
+      targetSp = "water";
+      predatorSp = "tiger";
+    }
+    if (m === "survival_bear") {
+      playerSp = "bear";
+      targetSp = "milk";
+      predatorSp = "panther";
+    }
+    if (m === "survival_gecko") {
+      playerSp = "gecko";
+      targetSp = "leaf";
+      predatorSp = "cheetah";
+    }
 
     if (m === "hunter_cat") {
       playerSp = "cat";
@@ -165,6 +195,31 @@ export class GameEngine {
     if (m === "hunter_frog") {
       playerSp = "frog";
       targetSp = "bug";
+      predatorSp = "none";
+    }
+    if (m === "hunter_cheetah") {
+      playerSp = "cheetah";
+      targetSp = "gecko";
+      predatorSp = "none";
+    }
+    if (m === "hunter_tiger") {
+      playerSp = "tiger";
+      targetSp = "elephant";
+      predatorSp = "none";
+    }
+    if (m === "hunter_panther") {
+      playerSp = "panther";
+      targetSp = "bear";
+      predatorSp = "none";
+    }
+    if (m === "hunter_hawk") {
+      playerSp = "hawk";
+      targetSp = "squirrel";
+      predatorSp = "none";
+    }
+    if (m === "hunter_fox") {
+      playerSp = "fox";
+      targetSp = "owl";
       predatorSp = "none";
     }
 
@@ -218,6 +273,11 @@ export class GameEngine {
         else if (this.mode === "survival_deer") targetSpecies = "lion";
         else if (this.mode === "survival_rabbit") targetSpecies = "wolf";
         else if (this.mode === "survival_bug") targetSpecies = "frog";
+        else if (this.mode === "survival_squirrel") targetSpecies = "hawk";
+        else if (this.mode === "survival_owl") targetSpecies = "fox";
+        else if (this.mode === "survival_elephant") targetSpecies = "tiger";
+        else if (this.mode === "survival_bear") targetSpecies = "panther";
+        else if (this.mode === "survival_gecko") targetSpecies = "cheetah";
       }
     } else if (this.mode.startsWith("hunter")) {
       // Hunter mode: player is predator. Trap should be for the prey.
@@ -232,6 +292,11 @@ export class GameEngine {
         else if (this.mode === "hunter_lion") targetSpecies = "deer";
         else if (this.mode === "hunter_wolf") targetSpecies = "rabbit";
         else if (this.mode === "hunter_frog") targetSpecies = "bug";
+        else if (this.mode === "hunter_cheetah") targetSpecies = "gecko";
+        else if (this.mode === "hunter_tiger") targetSpecies = "elephant";
+        else if (this.mode === "hunter_panther") targetSpecies = "bear";
+        else if (this.mode === "hunter_hawk") targetSpecies = "squirrel";
+        else if (this.mode === "hunter_fox") targetSpecies = "owl";
       }
     }
 
@@ -262,6 +327,37 @@ export class GameEngine {
       speed: 0,
       state: "idle",
       stateTimer: this.mode.startsWith("survival") ? 6.0 : 999, // Longer duration in survival, infinite in hunter
+    };
+    this.entities.push(trap);
+    audio.play("trap");
+    return trap; // Return for external event reference
+  }
+
+  placeOpponentTrapCustom(x: number, y: number, id: string, trapType: string) {
+    const existingTrapIndex = this.entities.findIndex(
+      (e) => e.id === id || e.species === trapType,
+    );
+    if (existingTrapIndex !== -1) {
+      // Pick up the trap
+      this.entities.splice(existingTrapIndex, 1);
+      audio.play("trap");
+      return;
+    }
+
+    const trap: Entity = {
+      id,
+      species: trapType as any,
+      isPlayer: false,
+      x: x,
+      y: y,
+      cx: x * this.cellSize,
+      cy: y * this.cellSize,
+      tx: x,
+      ty: y,
+      dir: 0,
+      speed: 0,
+      state: "idle",
+      stateTimer: this.mode.startsWith("survival") ? 6.0 : 999,
     };
     this.entities.push(trap);
     audio.play("trap");
@@ -514,6 +610,11 @@ export class GameEngine {
         if (this.mode === "survival_deer") predType = "lion";
         if (this.mode === "survival_rabbit") predType = "wolf";
         if (this.mode === "survival_bug") predType = "frog";
+        if (this.mode === "survival_squirrel") predType = "hawk";
+        if (this.mode === "survival_owl") predType = "fox";
+        if (this.mode === "survival_elephant") predType = "tiger";
+        if (this.mode === "survival_bear") predType = "panther";
+        if (this.mode === "survival_gecko") predType = "cheetah";
 
         const pred = getNearest(this.entities, predType, e.x, e.y);
         if (pred) {
@@ -585,6 +686,16 @@ export class GameEngine {
       if (this.mode === "survival_rabbit" && other.species === "carrot")
         isGoal = true;
       if (this.mode === "survival_bug" && other.species === "leaf")
+        isGoal = true;
+      if (this.mode === "survival_squirrel" && other.species === "leaf")
+        isGoal = true;
+      if (this.mode === "survival_owl" && other.species === "leaf")
+        isGoal = true;
+      if (this.mode === "survival_elephant" && other.species === "water")
+        isGoal = true;
+      if (this.mode === "survival_bear" && other.species === "milk")
+        isGoal = true;
+      if (this.mode === "survival_gecko" && other.species === "leaf")
         isGoal = true;
 
       if (isGoal) {

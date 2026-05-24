@@ -30,6 +30,16 @@ export function drawEntity(
 
   if (species.includes('trap')) {
     ctx.translate(0, 8); // Shift trap slightly down ("niche")
+    
+    // Subtle trap base as requested: "dikhta rehe thora thora"
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.font = '14px Arial';
+    ctx.fillText('🪤', 0, -2);
+    ctx.restore();
+    
+    // Set a slight alpha for the bait as well
+    ctx.globalAlpha *= 0.85;
   }
   
   if (state === 'caught') {
@@ -84,6 +94,30 @@ export function drawEntity(
   if (species === 'trap_wolf') emoji = '🥩';
   if (species === 'trap_bug') emoji = '🌿';
   if (species === 'trap_frog') emoji = '🦟';
+  
+  // Custom traps for new animals
+  if (species === 'cheetah') emoji = '🐆';
+  if (species === 'tiger') emoji = '🐅';
+  if (species === 'panther') emoji = '🐈‍⬛';
+  if (species === 'hawk') emoji = '🦅';
+  if (species === 'fox') emoji = '🦊';
+  if (species === 'squirrel') emoji = '🐿️';
+  if (species === 'owl') emoji = '🦉';
+  if (species === 'elephant') emoji = '🐘';
+  if (species === 'bear') emoji = '🐻';
+  if (species === 'gecko') emoji = '🦎';
+
+  if (species === 'trap_cheetah') emoji = '🥩';
+  if (species === 'trap_tiger') emoji = '🥩';
+  if (species === 'trap_panther') emoji = '🥩';
+  if (species === 'trap_hawk') emoji = '🥩';
+  if (species === 'trap_fox') emoji = '🥩';
+  if (species === 'trap_squirrel') emoji = '🌰';
+  if (species === 'trap_owl') emoji = '🐛';
+  if (species === 'trap_elephant') emoji = '🌿';
+  if (species === 'trap_bear') emoji = '🍯';
+  if (species === 'trap_gecko') emoji = '🦟';
+
   if (species === 'rat') emoji = '🐭';
   if (species === 'cat') emoji = '🐱';
   if (species === 'dog') emoji = '🐶';
